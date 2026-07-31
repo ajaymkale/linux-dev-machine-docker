@@ -15,13 +15,14 @@ pipeline {
         stage('Checkout') {
             steps {
                 checkout scm
+                 echo "Starting checkout scm"
             }
         }
 
         stage('Build Docker Image') {
 
             steps {
-
+                echo "Starting checkout docker build"
                 sh '''
                 docker build \
                 -t ${IMAGE_NAME}:${IMAGE_TAG} \
@@ -35,7 +36,7 @@ pipeline {
         stage('Docker Hub Login') {
 
             steps {
-
+                 echo "Starting Docker Hub Login"       
                 withCredentials([
                     usernamePassword(
                     credentialsId: 'dockerhub-creds',
@@ -60,7 +61,7 @@ pipeline {
         stage('Push Image') {
 
             steps {
-
+                   echo "Starting Push Image"
                 sh '''
                 docker push ${IMAGE_NAME}:${IMAGE_TAG}
                 docker push ${IMAGE_NAME}:latest
