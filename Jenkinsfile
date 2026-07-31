@@ -1,3 +1,4 @@
+
 pipeline {
 
     agent any
@@ -70,9 +71,7 @@ pipeline {
 
             steps {
 
-
                 echo "Logging into Docker Hub"
-
 
                 withCredentials([
                     usernamePassword(
@@ -81,7 +80,6 @@ pipeline {
                         passwordVariable: 'DOCKER_PASS'
                     )
                 ]) {
-
 
                     sh '''
 
