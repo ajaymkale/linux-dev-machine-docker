@@ -1,117 +1,95 @@
- pipeline {
+pipeline {
+
     agent any
 
     environment {
-        IMAGE_NAME =
-"kaleaja/myapp"
+        IMAGE_NAME = "kaleaja/linux-dev-machine"
         IMAGE_TAG = "${BUILD_NUMBER}"
-
-        JAVA_HOME =
-"/usr/lib/jvm/java-21-openjdk-amd64"
+        JAVA_HOME = "/usr/lib/jvm/java-21-openjdk-amd64"
         MAVEN_HOME = "/usr/share/apache-maven-3.9.16/"
-       
-PATH = "${JAVA_HOME}/bin:${MAVEN_HOME}/bin:${PATH}"
+        PATH = "${JAVA_HOME}/bin:${MAVEN_HOME}/bin:${PATH}"
     }
 
     stages {
 
-       
-stage('Checkout') {
+        stage('Checkout') {
             steps {
+                echo "Checking out source code from GitHub"
                 checkout scm
-          
- }
-        }
-
-        stage('Build Maven') {
-            steps {
-              
- sh 'mvn clean package -DskipTests'
             }
         }
 
-       
-stage('Build Docker Image') {
+        stage('Backup Existing Image') {
             steps {
+                echo "Creating backup of current latest image"
                 sh '''
-               
-docker build \
-                -t ${IMAGE_NAME}:${IMAGE_TAG} \
-                -t
-${IMAGE_NAME}:latest .
+                docker pull ${IMAGE_NAME}:latest || true
+                docker tag \
+                ${IMAGE_NAME}:latest \
+                ${IMAGE_NAME}:backup || true
                 '''
             }
         }
 
-
-       
-stage('Login Docker Hub') {
+        stage('Build Docker Image') {
             steps {
-                withCredentials([
+                echo "Building new Docker image"
+                sh '''
+                docker build \
+                -t ${IMAGE_NAME}:latest .
+                '''
+            }
+        }
 
-                   usernamePassword(
-                        credentialsId:
-'dockerhub-creds',
+        stage('Docker Hub Login') {
+            steps {
+                echo "Logging into Docker Hub"
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: 'dockerhub-creds',
                         usernameVariable: 'DOCKER_USER',
-       
-                passwordVariable: 'DOCKER_PASS'
+                        passwordVariable: 'DOCKER_PASS'
                     )
-         
-      ]) {
+                ]) {
                     sh '''
-                    echo "$DOCKER_PASS" |
-docker login \
+                    echo "$DOCKER_PASS" | docker login \
                     -u "$DOCKER_USER" \
-                   
---password-stdin
+                    --password-stdin
                     '''
                 }
             }
-       
-}
-
-
-        stage('Push Docker Image') {
-            steps {
-                sh
-'''
-                docker push ${IMAGE_NAME}:${IMAGE_TAG}
-                docker
-push ${IMAGE_NAME}:latest
-                '''
-            }
         }
 
-
-       
-stage('Run Container') {
+        stage('Push Backup Image') {
             steps {
+                echo "Pushing backup image to Docker Hub"
                 sh '''
-             
-  docker rm -f myapp || true
-
-                docker run -d \
-               
---name myapp \
-                -p 8081:8080 \
-               
-${IMAGE_NAME}:${IMAGE_TAG}
+                docker push ${IMAGE_NAME}:backup || true
                 '''
             }
         }
+
+        stage('Push Latest Image') {
+            steps {
+                echo "Pushing latest image to Docker Hub"
+                sh '''
+                docker push ${IMAGE_NAME}:latest
+                '''
+            }
+        }
+
     }
 
-
     post {
-       
-success {
-            echo "Docker image pushed successfully:
-${IMAGE_NAME}:${IMAGE_TAG}"
+
+        success {
+            echo "Docker image build and push completed successfully"
         }
 
         failure {
-            echo "Build or deployment
-failed."
+            echo "Docker image build or push failed"
         }
+
     }
+
 }
