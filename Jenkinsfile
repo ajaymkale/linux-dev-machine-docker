@@ -41,23 +41,41 @@ pipeline {
             }
         }
 
-        stage('Docker Hub Login') {
+   stage('Docker Hub Login') {
+
             steps {
+                 echo "Starting Docker Hub Login"       
+
+
                 echo "Logging into Docker Hub"
+
+
                 withCredentials([
                     usernamePassword(
+                    credentialsId: 'dockerhub-creds',
+                    usernameVariable: 'DOCKER_USER',
+                    passwordVariable: 'DOCKER_PASS'
                         credentialsId: 'dockerhub-creds',
                         usernameVariable: 'DOCKER_USER',
                         passwordVariable: 'DOCKER_PASS'
                     )
                 ]) {
+
+
                     sh '''
+                    echo $DOCKER_PASS | docker login \
+                    -u $DOCKER_USER \
+
                     echo "$DOCKER_PASS" | docker login \
                     -u "$DOCKER_USER" \
                     --password-stdin
+
                     '''
+
                 }
+
             }
+
         }
 
         stage('Push Backup Image') {
