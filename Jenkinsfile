@@ -12,59 +12,120 @@ pipeline {
 
 
     stages {
+
+
         stage('Checkout') {
+
             steps {
+
+                echo "Checking out source code from GitHub"
+
                 checkout scm
-                 echo "Starting checkout scm"
+
             }
         }
 
-        stage('Build Docker Image') {
+
+
+        stage('Backup Existing Image') {
 
             steps {
-                echo "Starting checkout docker build"
+
+                echo "Creating backup of current latest image"
+
                 sh '''
-                docker build \
-                -t ${IMAGE_NAME}:${IMAGE_TAG} \
-                -t ${IMAGE_NAME}:latest .
+                
+                docker pull ${IMAGE_NAME}:latest || true
+
+                docker tag \
+                ${IMAGE_NAME}:latest \
+                ${IMAGE_NAME}:backup || true
+
                 '''
 
             }
         }
 
 
-        stage('Docker Hub Login') {
+
+        stage('Build Docker Image') {
 
             steps {
-                 echo "Starting Docker Hub Login"       
-                withCredentials([
-                    usernamePassword(
-                    credentialsId: 'dockerhub-creds',
-                    usernameVariable: 'DOCKER_USER',
-                    passwordVariable: 'DOCKER_PASS'
-                    )
-                ]) {
 
-                    sh '''
-                    echo $DOCKER_PASS | docker login \
-                    -u $DOCKER_USER \
-                    --password-stdin
-                    '''
+                echo "Building new Docker image"
 
-                }
+                sh '''
+
+                docker build \
+                -t ${IMAGE_NAME}:latest .
+
+                '''
 
             }
         }
 
 
 
-        stage('Push Image') {
+        stage('Docker Hub Login') {
 
             steps {
-                   echo "Starting Push Image"
+
+
+                echo "Logging into Docker Hub"
+
+
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: 'dockerhub-creds',
+                        usernameVariable: 'DOCKER_USER',
+                        passwordVariable: 'DOCKER_PASS'
+                    )
+                ]) {
+
+
+                    sh '''
+
+                    echo "$DOCKER_PASS" | docker login \
+                    -u "$DOCKER_USER" \
+                    --password-stdin
+
+                    '''
+
+                }
+
+            }
+
+        }
+
+
+
+        stage('Push Backup Image') {
+
+            steps {
+
+                echo "Pushing backup image to Docker Hub"
+
                 sh '''
-                docker push ${IMAGE_NAME}:${IMAGE_TAG}
+
+                docker push ${IMAGE_NAME}:backup || true
+
+                '''
+
+            }
+        }
+
+
+
+        stage('Push Latest Image') {
+
+            steps {
+
+                echo "Pushing latest image to Docker Hub"
+
+                sh '''
+
                 docker push ${IMAGE_NAME}:latest
+
                 '''
 
             }
@@ -74,19 +135,23 @@ pipeline {
     }
 
 
+
     post {
+
 
         success {
 
-            echo "Image pushed successfully"
+            echo "Docker image build and push completed successfully"
 
         }
+
 
         failure {
 
-            echo "Build failed"
+            echo "Docker image build or push failed"
 
         }
+
 
     }
 
