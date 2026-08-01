@@ -23,10 +23,8 @@ pipeline {
             steps {
                 echo "Creating backup of current latest image"
                 sh '''
-                docker pull ${IMAGE_NAME}:latest || true
-                docker tag \
-                ${IMAGE_NAME}:latest \
-                ${IMAGE_NAME}:backup || true
+                docker pull ${IMAGE_NAME}:latest && \
+                docker tag ${IMAGE_NAME}:latest ${IMAGE_NAME}:backup || true
                 '''
             }
         }
@@ -41,47 +39,40 @@ pipeline {
             }
         }
 
-
+        stage('Smoke Test') {
+            steps {
+                echo "Verifying Docker image"
+                sh '''
+                docker run --rm ${IMAGE_NAME}:latest java -version
+                '''
+            }
+        }
 
         stage('Push Backup Image') {
             steps {
                 echo "Pushing backup image to Docker Hub"
                 sh '''
+                docker image inspect ${IMAGE_NAME}:backup > /dev/null 2>&1 && \
                 docker push ${IMAGE_NAME}:backup || true
                 '''
             }
         }
 
-   stage('Docker Hub Login') {
-
-            steps {
-                 echo "Starting Docker Hub Login"       
-
-
-                echo "Logging into Docker Hub"
-
-
-                withCredentials([
-                    usernamePassword(
-                        credentialsId: 'dockerhub-creds',
-                        usernameVariable: 'DOCKER_USER',
-                        passwordVariable: 'DOCKER_PASS'
-                    )
-                ]) {
-
-                    echo "$DOCKER_PASS" | docker login \
-                    -u "$DOCKER_USER" \
-                    --password-stdin
-
-                    '''
-
-                }
-
-            }
-
+        stage('Docker Login') {
+    steps {
+        withCredentials([usernamePassword(
+            credentialsId: 'dockerhub',
+            usernameVariable: 'DOCKER_USER',
+            passwordVariable: 'DOCKER_PASS'
+        )]) {
+            sh '''
+                echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+            '''
         }
+    }
+}
 
-        
+
 
         stage('Push Latest Image') {
             steps {
