@@ -52,6 +52,37 @@ pipeline {
             }
         }
 
+   stage('Docker Hub Login') {
+
+            steps {
+                 echo "Starting Docker Hub Login"       
+
+
+                echo "Logging into Docker Hub"
+
+
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: 'dockerhub-creds',
+                        usernameVariable: 'DOCKER_USER',
+                        passwordVariable: 'DOCKER_PASS'
+                    )
+                ]) {
+
+                    echo "$DOCKER_PASS" | docker login \
+                    -u "$DOCKER_USER" \
+                    --password-stdin
+
+                    '''
+
+                }
+
+            }
+
+        }
+
+        
+
         stage('Push Latest Image') {
             steps {
                 echo "Pushing latest image to Docker Hub"
