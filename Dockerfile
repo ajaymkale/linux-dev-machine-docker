@@ -16,8 +16,13 @@ RUN apt update && apt install -y \
     python3-pip \
     && apt clean
 
-RUN useradd -m developer && \
+RUN useradd -m -s /bin/bash developer && \
+    echo "developer:developer" | chpasswd && \
     echo "developer ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+
+RUN useradd -m -s /bin/bash ansible && \
+    echo "ansible:ansible" | chpasswd && \
+    echo "ansible ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 
 USER developer
 
